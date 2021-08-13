@@ -2,9 +2,12 @@
     position: absolute;
     inset: 0;
 }
+body{
+    text-align: center;
+}
 
 #map{
-    margin: 4em auto;
+    margin: 4em auto 1em;
     width: 900px;
     height: 600px;
 }

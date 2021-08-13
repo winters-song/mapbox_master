@@ -1,93 +1,98 @@
-import React, {useEffect} from 'react'
+import React, {useEffect, useRef} from 'react'
 import './App.css';
 
-const mapboxgl = require('mapbox-gl/dist/mapbox-gl.js');
+import mapboxgl from 'mapbox-gl/dist/mapbox-gl.js'
+import MapboxLanguage from '@mapbox/mapbox-gl-language'
 
+const china = require('./100000_full.json')
 
 function App() {
 
+  const mapRef = useRef()
+
   const mapLoaded = (map) => {
-    var size = 200;
+    // 中文
+    map.addControl(new MapboxLanguage({defaultLanguage: 'zh'}));
 
-    var pulsingDot = {
-      width: size,
-      height: size,
-      data: new Uint8Array(size * size * 4),
+    initFill(map)
 
-      onAdd: function () {
-        var canvas = document.createElement('canvas');
-        canvas.width = this.width;
-        canvas.height = this.height;
-        this.context = canvas.getContext('2d');
-      },
+    addMarkers(map)
+  }
 
-      render: function () {
-        var duration = 1000;
-        var t = (performance.now() % duration) / duration;
+  //首次填充颜色
+  const initFill =(map) => {
+    china.features.forEach(item => {
+      item.properties.confirmed = Math.random() * 10000
+    })
 
-        var radius = size / 2 * 0.3;
-        var outerRadius = size / 2 * 0.7 * t + radius;
-        var context = this.context;
-
-        // draw outer circle
-        context.clearRect(0, 0, this.width, this.height);
-        context.beginPath();
-        context.arc(this.width / 2, this.height / 2, outerRadius, 0, Math.PI * 2);
-        context.fillStyle = 'rgba(255, 200, 200,' + (1 - t) + ')';
-        context.fill();
-
-        // draw inner circle
-        context.beginPath();
-        context.arc(this.width / 2, this.height / 2, radius, 0, Math.PI * 2);
-        context.fillStyle = 'rgba(255, 100, 100, 1)';
-        context.strokeStyle = 'white';
-        context.lineWidth = 2 + 4 * (1 - t);
-        context.fill();
-        context.stroke();
-
-        // update this image's data with data from the canvas
-        this.data = context.getImageData(0, 0, this.width, this.height).data;
-
-        // keep the map repainting
-        map.triggerRepaint();
-
-        // return `true` to let the map know that the image was updated
-        return true;
-      }
-    };
-
-    map.addImage('pulsing-dot', pulsingDot, {pixelRatio: 2});
-
+    map.addSource("fillSourceID", {
+      type: "geojson" /* geojson类型资源 */,
+      data: china, /* geojson数据 */
+    });
     map.addLayer({
-      "id": "points",
-      "type": "symbol",
-      "source": {
-        "type": "geojson",
-        "data": {
-          "type": "FeatureCollection",
-          "features": [{
-            "type": "Feature",
-            "geometry": {
-              "type": "Point",
-              "coordinates": [0, 0]
-            }
-          }]
+      id: "fillID",
+      type: "fill" /* fill类型一般用来表示一个面，一般较大 */,
+      source: "fillSourceID",
+
+      paint: {
+        "fill-color": {
+          property: "confirmed", // this will be your density property form you geojson
+          stops: [
+            [0, "#ffffff"],
+            // [10, "#ffd0a6"],
+            // [100, "#ffaa7f"],
+            // [500, "#ff704e"],
+            // [1000, "#f04040"],
+            [10000, "#b50a09"]
+          ]
+        },
+        "fill-opacity": 0.8, /* 透明度 */
+        "fill-opacity-transition": {
+          "duration": 1000,
+          "delay": 0
         }
-      },
-      "layout": {
-        "icon-image": "pulsing-dot"
       }
     });
   }
 
+  const addMarkers = (map) => {
+    // Create a default Marker and add it to the map.
+    const marker1 = new mapboxgl.Marker({ color: 'red' })
+      .setLngLat([117, 40])
+      .addTo(map);
+
+  }
+
+  const changeColor = () => {
+    if(mapRef.current){
+      china.features.forEach(item => {
+        item.properties.confirmed = Math.random() * 10000
+      })
+
+      const source = mapRef.current.getSource("fillSourceID")
+      source.setData(china)
+    }
+  }
   useEffect(() => {
     mapboxgl.accessToken = 'pk.eyJ1Ijoid2ludGVyczgxMCIsImEiOiJja3EwOWsybXQwMHdwMm5tcTBtejV5NmxzIn0.l73pc951LYq7xZmJ79TVwg';
     let map = new mapboxgl.Map({
       container: 'map',
-      style: 'mapbox://styles/mapbox/streets-v11'
+      style: 'mapbox://styles/mapbox/light-v9',
+      center: [
+        105,
+        36
+      ],
+      zoom: 3,
+      "transition": {
+        "duration": 300,
+        "delay": 0
+      }
+      // maxBounds: [[70, 17 ], [ 136, 55]]
     });
 
     map.on('load', function () {
+      mapRef.current = map
+      window.map = map
       mapLoaded(map)
     })
   }, [])
@@ -95,6 +100,8 @@ function App() {
   return (
     <div id="wrapper">
       <div id="map"></div>
+
+      <button onClick={changeColor}>更新</button>
     </div>
   );
 }
